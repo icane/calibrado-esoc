@@ -1,0 +1,84 @@
+---
+title: "calibrado encuesta social con R"
+author: "Francisco Parra"
+date: "29 de mayo de 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libreria ICARUS
+
+Ejemplo que acompaña a la libreria icarus
+
+```{r}
+library(icarus)
+data("data_employees")
+# Encuesta sobre los empleados de una compañía que van al cine, en poid están los pesos y en cine las veces o frecuencias
+head(data_employees) 
+table(data_employees$categ) # en categoría hay tres item 1,2,3
+table(data_employees$sexe) # en sexo hay dos 1,2
+N <- 300 ## population total
+## Horvitz Thompson estimator of the mean: 1.666667
+weightedMean(data_employees$cinema, data_employees$poids, N)
+## Enter calibration margins:
+mar1 <- c("categ",3,80,90,60)
+mar2 <- c("sexe",2,140,90,0)
+mar3 <- c("service",2,100,130,0)
+mar4 <- c("salaire", 0, 470000,0,0)
+margins <- rbind(mar1, mar2, mar3, mar4)
+## Compute calibrated weights with raking ratio method
+wCal <- calibration(data=data_employees, marginMatrix=margins, colWeights="poids"
+                            , method="raking", description=FALSE)
+head(wCal)
+## Calibrated estimate: 2.471917
+weightedMean(data_employees$cinema, wCal, N)
+```
+
+## Encuesta social de Cantabria
+
+Se realiza el calibrado de la encuesta social de cantabria y se comparan los resultados con g-calib
+
+```{r}
+datos=read.csv("Pondera3.csv",header=TRUE,sep=";",dec=",")
+marg=read.csv("margenes.csv",header=FALSE,sep=";",dec=",")
+str(datos)
+head(datos)
+table(datos$Estrato)
+table(datos$qvar)
+table(datos$se2)
+mar1 <- c("se",12,8841,31057,48143,46067,40613,52789,8297,30562,47434,46066,42520,71223)
+mar2 <- c("Estrato",8,16010,24378,62895,64780,51829,67533,42829,143358,0,0,0,0)
+mar3 <- cbind("se2",96,t(marg))
+margins <- rbind(mar3)
+## Compute calibrated weights with raking ratio method
+wCal <- calibration(data=datos, marginMatrix=margins, colWeights="Elev_pob", method="raking", description=TRUE)
+summary(wCal)
+# Leemos datos del calibrado con g_calib
+datos2=read.csv("calibrado_g_calib.csv",header=TRUE,sep=";",dec=",")
+datos2=datos2[1:1814,]
+summary(datos2$G_WEIG)
+library(ggplot2)
+ggplot(datos2,aes(G_WEIG)) + geom_density()
+summary(datos2$CALWEI)
+datos$wCal=wCal
+library(dplyr) # Cargar la librería de manipulación de dataframes "dplyr"
+datos <- arrange(datos, N_IDE) # Orden directo
+datos2 <- arrange(datos2, N_IDE) # Orden directo
+# Representación conjunta de los histogramas
+p1 <- hist(datos2$CALWEI,breaks=50)
+p2 <- hist(datos$wCal,breaks=50)                     
+plot( p1, col=rgb(0,0,1,1/4), xlim=c(0,600))  # first histogram
+plot( p2, col=rgb(1,0,0,1/4), xlim=c(0,600), add=T)  # second
+# tablas agregadas
+tapply(datos$wCal,datos$se2,sum)
+tapply(datos2$CALWEI,datos$se2,sum)
+sum(datos$wCal)
+sum(datos2$CALWEI)
+library(xlsx)
+write.xlsx(datos, "datos.xlsx",showNA = FALSE)
+```
