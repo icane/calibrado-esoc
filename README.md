@@ -1,2 +1,2 @@
 # calibrado-esoc
-Calibrado de la Encuesta Social mediante scripts en lenguaje R.
+Calibrado de la Encuesta Social de Cantabria mediante scripts en lenguaje R.
